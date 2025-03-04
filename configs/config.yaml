@@ -1,0 +1,9 @@
+network:
+  rpc_url: "https://mainnet.infura.io/v3/YOUR_INFURA_KEY"
+  private_key: "YOUR_WALLET_PRIVATE_KEY"
+contracts:
+  debridge_gate: "0xDEBRIDGE_CONTRACT_ADDRESS"
+  sonic_farm: "0xSONIC_FARM_CONTRACT_ADDRESS"
+strategy:
+  reinvest_threshold: 0.05  # Example: Only reinvest if rewards > 5%
+  rebalance_interval: 86400  # Rebalance every 24h (in seconds)
