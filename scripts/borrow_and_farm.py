@@ -6,14 +6,18 @@ import os
 with open("configs/config.yaml", "r") as f:
     config = yaml.safe_load(f)
 
-web3 = Web3(Web3.HTTPProvider(config["network"]["rpc_url"]))
-private_key = os.getenv("PRIVATE_KEY") or config["network"]["private_key"]
-account = web3.eth.account.from_key(private_key)
+# Initialize both networks
+eth_web3 = Web3(Web3.HTTPProvider(config["networks"]["sonic"]["rpc_url"]))
+arb_web3 = Web3(Web3.HTTPProvider(config["networks"]["arbitrum"]["rpc_url"]))
+
+private_key = os.getenv("PRIVATE_KEY") or config["networks"]["arbitrum"]["private_key"]
+sonic_account = eth_web3.eth.account.from_key(private_key)
+arb_account = arb_web3.eth.account.from_key(private_key)
 
 def borrow_and_farm():
     """Execute cross-chain borrowing & farming logic."""
-    print("Borrowing on chain A, farming on chain B...")
-    # Interact with deBridge & Sonic contracts here
+    print("Borrowing on Arbitrum, farming on Sonic...")
+    # Implement cross-chain logic here
 
 if __name__ == "__main__":
     borrow_and_farm()
