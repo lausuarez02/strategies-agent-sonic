@@ -6,15 +6,15 @@ import os
 with open("configs/config.yaml", "r") as f:
     config = yaml.safe_load(f)
 
-web3 = Web3(Web3.HTTPProvider(config["network"]["rpc_url"]))
-private_key = os.getenv("PRIVATE_KEY") or config["network"]["private_key"]
+web3 = Web3(Web3.HTTPProvider(config["networks"]["sonic"]["rpc_url"]))
+private_key = os.getenv("PRIVATE_KEY") or config["networks"]["sonic"]["private_key"]
 account = web3.eth.account.from_key(private_key)
 
 def auto_compound():
     """Trigger auto-compounding transaction."""
     tx = {
         "from": account.address,
-        "to": config["contracts"]["sonic_farm"],
+        "to": config["contracts"]["sonic"]["sonic_vault"],
         "data": "0x",  # Replace with actual function call
         "gas": 200000,
         "gasPrice": web3.to_wei("5", "gwei"),
