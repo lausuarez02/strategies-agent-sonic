@@ -13,7 +13,19 @@ contracts:
     sonic_zapper: "0xe25A2B256ffb3AD73678d5e80DE8d2F6022fAb21"
   arbitrum:
     debridge_gate: "0x43dE2d77BF8027e25dBD179B491e8d64f38398aA"
+    aave:
+      pool: "0x794a61358D6845594F94dc1DB02A252b5b4814aD"
+      pool_data_provider: "0x69FA688f1Dc47d4B5d8029D5a35FB7a548310654"
+      rewards_controller: "0x929EC64c34a17401F460460D4B9390518E5B473e"
+      oracle: "0xb56c2F0B653B2e0b10C9b928C8580Ac5Df02C7C7"
+      tokens:
+        eth: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+        usdc: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
 
 strategy:
   reinvest_threshold: 0.05  # Example: Only reinvest if rewards > 5%
   rebalance_interval: 86400  # Rebalance every 24h (in seconds)
+  arbitrage:
+    min_profit_percentage: 0.02  # Minimum 2% profit after fees
+    vault_percentage: 0.05       # Use 5% of vault for arbitrage
+    max_slippage: 0.01
