@@ -2,6 +2,8 @@ import pandas as pd
 from datetime import datetime, timedelta
 import json
 import os
+import logging
+from typing import Dict, List
 
 class KnowledgeBox:
     def __init__(self, storage_path="data/knowledge"):
@@ -15,6 +17,9 @@ class KnowledgeBox:
             'risk_events': self._load_knowledge('risk_events.json'),
             'strategy_outcomes': self._load_knowledge('strategy_outcomes.json')
         }
+        self.logger = logging.getLogger('KnowledgeBox')
+        self.market_patterns = []
+        self.strategy_outcomes = []
 
     def _load_knowledge(self, filename):
         """Load knowledge from storage"""
@@ -30,14 +35,15 @@ class KnowledgeBox:
         with open(f"{self.storage_path}/{filename}", 'w') as f:
             json.dump(data, f, indent=2)
 
-    def add_market_pattern(self, pattern):
-        """Record a new market pattern observation"""
-        self.categories['market_patterns'].append({
-            'timestamp': datetime.now().isoformat(),
-            'pattern': pattern,
-            'outcome': None  # To be updated later
-        })
-        self._save_knowledge('market_patterns', self.categories['market_patterns'])
+    def add_market_pattern(self, pattern: Dict):
+        """Add a new market pattern to the knowledge base"""
+        try:
+            self.market_patterns.append({
+                'timestamp': pd.Timestamp.now(),
+                'data': pattern
+            })
+        except Exception as e:
+            self.logger.error(f"Error adding market pattern: {e}")
 
     def add_yield_pattern(self, pattern):
         """Record yield pattern observation"""
@@ -89,3 +95,11 @@ class KnowledgeBox:
         """Calculate similarity between two patterns"""
         # Mock implementation - replace with actual similarity calculation
         return 0.9  # Example similarity score 
+
+    def get_recent_patterns(self, n: int = 10) -> List[Dict]:
+        """Get n most recent patterns"""
+        try:
+            return self.market_patterns[-n:]
+        except Exception as e:
+            self.logger.error(f"Error getting recent patterns: {e}")
+            return [] 

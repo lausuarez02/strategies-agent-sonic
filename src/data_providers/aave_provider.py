@@ -1,221 +1,124 @@
 from web3 import Web3
-import yaml
-import os
+import json
+import logging
 
 class AaveDataProvider:
-    def __init__(self, web3_instance):
-        self.web3 = web3_instance
-        with open("configs/config.yaml", "r") as f:
-            self.config = yaml.safe_load(f)
+    def __init__(self, web3: Web3):
+        self.web3 = web3
+        self.logger = logging.getLogger('AaveDataProvider')
         
-        # Get Aave addresses from config
-        aave_config = self.config["contracts"]["arbitrum"]["aave"]
-        self.AAVE_POOL = aave_config["pool"]
-        self.AAVE_POOL_DATA_PROVIDER = aave_config["pool_data_provider"]
-        self.ETH = aave_config["tokens"]["eth"]
-        self.USDC = aave_config["tokens"]["usdc"]
+        # Load Aave Pool ABI
+        with open("src/abis/AavePool.json", "r") as f:
+            self.aave_pool_abi = json.load(f)
+            
+        # Initialize contract addresses
+        self.AAVE_POOL = "0x794a61358D6845594F94dc1DB02A252b5b4814aD"
+        self.LENDING_TOKEN = "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
         
-        # Initialize Aave contracts
-        self.pool = self.web3.eth.contract(
+        # Initialize contracts
+        self.aave_pool = self.web3.eth.contract(
             address=self.AAVE_POOL,
-            abi=self.get_aave_pool_abi()
-        )
-        
-        self.data_provider = self.web3.eth.contract(
-            address=self.AAVE_POOL_DATA_PROVIDER,
-            abi=self.get_data_provider_abi()
+            abi=self.aave_pool_abi
         )
 
-    def get_eth_usdc_strategy_data(self):
-        """Get data for ETH collateral -> USDC borrow strategy"""
-        # Get ETH supply data
-        eth_data = self.data_provider.functions.getReserveData(self.ETH).call()
-        eth_supply_apy = eth_data[3] / 1e27  # Convert RAY to percentage
-        
-        # Get USDC borrow data
-        usdc_data = self.data_provider.functions.getReserveData(self.USDC).call()
-        usdc_borrow_apy = usdc_data[4] / 1e27  # Variable borrow rate
-        
-        # Get user configuration
-        user_data = self.pool.functions.getUserAccountData(self.config["wallet_address"]).call()
-        
-        return {
-            'eth_supply_apy': eth_supply_apy,
-            'usdc_borrow_apy': usdc_borrow_apy,
-            'total_collateral_eth': user_data[0] / 1e18,
-            'total_debt_eth': user_data[1] / 1e18,
-            'available_borrow_eth': user_data[2] / 1e18,
-            'current_ltv': user_data[3] / 1e4,  # Current Loan to Value
-            'health_factor': user_data[5] / 1e18
-        }
+    def get_lending_token_address(self):
+        """Get the lending token address (USDC)"""
+        return self.LENDING_TOKEN
+
+    def get_aave_pool_address(self):
+        """Get the Aave pool address"""
+        return self.AAVE_POOL
+
+    def get_user_data(self, user_address: str):
+        """Get user account data from Aave"""
+        try:
+            user_data = self.aave_pool.functions.getUserAccountData(user_address).call()
+            return {
+                'total_collateral_eth': user_data[0],
+                'total_debt_eth': user_data[1],
+                'available_borrow_eth': user_data[2],
+                'current_liquidation_threshold': user_data[3],
+                'ltv': user_data[4],
+                'health_factor': user_data[5]
+            }
+        except Exception as e:
+            self.logger.error(f"Error getting user data: {e}")
+            return None
+
+    def get_reserve_data(self, asset_address: str):
+        """Get reserve data for an asset"""
+        try:
+            reserve_data = self.aave_pool.functions.getReserveData(asset_address).call()
+            return {
+                'liquidity_rate': reserve_data[0],  # Supply APY
+                'variable_borrow_rate': reserve_data[1],
+                'stable_borrow_rate': reserve_data[2],
+                'liquidity_index': reserve_data[3],
+                'variable_borrow_index': reserve_data[4]
+            }
+        except Exception as e:
+            self.logger.error(f"Error getting reserve data: {e}")
+            return None
+
+    def get_rewards(self):
+        """Get current rewards APR for lending"""
+        try:
+            # This is a simplified version - you might need to implement
+            # specific reward calculation logic based on your needs
+            reserve_data = self.get_reserve_data(self.LENDING_TOKEN)
+            if reserve_data:
+                # Convert to percentage (APR)
+                return Web3.from_wei(reserve_data['liquidity_rate'], 'ether') * 100
+            return 0
+        except Exception as e:
+            self.logger.error(f"Error getting rewards: {e}")
+            return 0
+
+    def get_lending_apy(self):
+        """Get current lending APY"""
+        try:
+            reserve_data = self.get_reserve_data(self.LENDING_TOKEN)
+            if reserve_data:
+                # Convert to percentage (APY)
+                return Web3.from_wei(reserve_data['liquidity_rate'], 'ether') * 100
+            return 0
+        except Exception as e:
+            self.logger.error(f"Error getting lending APY: {e}")
+            return 0
+
+    def get_total_tvl(self):
+        """Get total TVL in Aave"""
+        try:
+            reserve_data = self.get_reserve_data(self.LENDING_TOKEN)
+            if reserve_data:
+                return reserve_data['liquidity_index'] / 1e6  # Convert from USDC decimals
+            return 0
+        except Exception as e:
+            self.logger.error(f"Error getting TVL: {e}")
+            return 0
 
     def get_optimal_position(self):
-        """Calculate optimal ETH collateral and USDC borrow amounts"""
-        data = self.get_eth_usdc_strategy_data()
-        
-        # Conservative LTV of 65% (max is usually 82.5% for ETH)
-        target_ltv = 0.65
-        
-        # Get ETH price in USD
-        eth_price = self.get_eth_price()
-        
-        # Calculate optimal amounts
-        eth_collateral = data['total_collateral_eth']
-        max_usdc_borrow = (eth_collateral * eth_price * target_ltv)
-        
-        return {
-            'suggested_eth_collateral': eth_collateral,
-            'suggested_usdc_borrow': max_usdc_borrow,
-            'estimated_net_apy': data['eth_supply_apy'] - data['usdc_borrow_apy'],
-            'health_factor': data['health_factor']
-        }
-
-    def get_eth_price(self):
-        """Get ETH price from Aave Oracle"""
-        oracle = self.web3.eth.contract(
-            address=self.config["contracts"]["arbitrum"]["aave"]["oracle"],
-            abi=self.get_oracle_abi()
-        )
-        return oracle.functions.getAssetPrice(self.ETH).call() / 1e8
-
-    def get_aave_pool_abi(self):
-        """Minimal ABI for Aave Pool"""
-        return [
-            {
-                "inputs": [{"type": "address"}],
-                "name": "getUserAccountData",
-                "outputs": [
-                    {"type": "uint256"},  # totalCollateralETH
-                    {"type": "uint256"},  # totalDebtETH
-                    {"type": "uint256"},  # availableBorrowsETH
-                    {"type": "uint256"},  # currentLiquidationThreshold
-                    {"type": "uint256"},  # ltv
-                    {"type": "uint256"}   # healthFactor
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            }
-        ]
-
-    # ... other ABI getters ...
-
-    def get_apy(self):
-        """Get current Aave lending APY"""
-        eth_data = self.data_provider.functions.getReserveData(self.ETH).call()
-        return eth_data[3] / 1e27  # Convert RAY to percentage
-        
-    def get_rewards(self):
-        """Get pending Aave rewards"""
-        # Note: For Aave v3, rewards are handled by the RewardsController contract
-        rewards_controller = self.config["contracts"]["arbitrum"]["aave"]["rewards_controller"]
+        """Get optimal position data from Aave"""
         try:
-            rewards_contract = self.web3.eth.contract(
-                address=rewards_controller,
-                abi=self.get_rewards_abi()
-            )
-            pending_rewards = rewards_contract.functions.getUserRewards(
-                [self.ETH],  # List of assets to check
-                self.config["wallet_address"],  # User address
-                "0x0000000000000000000000000000000000000000"  # Reward token (0x0 for default)
-            ).call()
-            return pending_rewards / 1e18  # Convert to human readable
+            reserve_data = self.get_reserve_data(self.LENDING_TOKEN)
+            if not reserve_data:
+                raise Exception("Failed to get reserve data")
+                
+            return {
+                'supply_apy': reserve_data['liquidity_rate'] / 1e27,
+                'borrow_apy': reserve_data['variable_borrow_rate'] / 1e27,
+                'estimated_net_apy': (reserve_data['liquidity_rate'] - reserve_data['variable_borrow_rate']) / 1e27,
+                'utilization_rate': reserve_data['liquidity_index'] / (reserve_data['liquidity_index'] + reserve_data['variable_borrow_index']),
+                'health_factor': 1.5,  # Default safe value
+                'borrow_ratio': 0.0  # Placeholder
+            }
         except Exception as e:
-            print(f"Error fetching rewards: {e}")
-            return 0
-        
-    def get_tvl(self):
-        """Get Total Value Locked in Aave"""
-        eth_data = self.data_provider.functions.getReserveData(self.ETH).call()
-        total_supply = eth_data[0]  # Total supply in the reserve
-        eth_price = self.get_eth_price()
-        return (total_supply * eth_price) / 1e18  # Convert to USD value
-
-    def get_rewards_abi(self):
-        """Minimal ABI for Aave Rewards Controller"""
-        return [
-            {
-                "inputs": [
-                    {"type": "address[]"},  # assets
-                    {"type": "address"},    # user
-                    {"type": "address"}     # reward token
-                ],
-                "name": "getUserRewards",
-                "outputs": [{"type": "uint256"}],
-                "stateMutability": "view",
-                "type": "function"
-            }
-        ]
-
-    def get_data_provider_abi(self):
-        """Minimal ABI for Aave Pool Data Provider"""
-        return [
-            {
-                "inputs": [{"type": "address"}],
-                "name": "getReserveData",
-                "outputs": [
-                    {"type": "uint256"},  # totalLiquidity
-                    {"type": "uint256"},  # availableLiquidity
-                    {"type": "uint256"},  # totalBorrows
-                    {"type": "uint256"},  # availableBorrows
-                    {"type": "uint256"},  # reserveFactor
-                    {"type": "uint256"},  # variableBorrowRate
-                    {"type": "uint256"},  # stableBorrowRate
-                    {"type": "uint256"},  # liquidityRate
-                    {"type": "uint256"},  # variableBorrowIndex
-                    {"type": "uint256"},  # stableBorrowIndex
-                    {"type": "uint256"},  # lastUpdateTimestamp
-                    {"type": "uint256"}   # aTokenAddress
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            }
-        ]
-
-    def get_oracle_abi(self):
-        """Minimal ABI for Aave Oracle"""
-        return [
-            {
-                "inputs": [{"type": "address"}],
-                "name": "getAssetPrice",
-                "outputs": [{"type": "uint256"}],
-                "stateMutability": "view",
-                "type": "function"
-            }
-        ]
-
-    def get_data_provider_abi(self):
-        """Minimal ABI for Aave Pool Data Provider"""
-        return [
-            {
-                "inputs": [{"type": "address"}],
-                "name": "getReserveData",
-                "outputs": [
-                    {"type": "uint256"},  # totalLiquidity
-                    {"type": "uint256"},  # availableLiquidity
-                    {"type": "uint256"},  # totalBorrows
-                    {"type": "uint256"},  # availableBorrows
-                    {"type": "uint256"},  # reserveFactor
-                    {"type": "uint256"},  # variableBorrowRate
-                    {"type": "uint256"},  # stableBorrowRate
-                    {"type": "uint256"},  # liquidityRate
-                    {"type": "uint256"},  # variableBorrowIndex
-                    {"type": "uint256"},  # stableBorrowIndex
-                    {"type": "uint256"},  # lastUpdateTimestamp
-                    {"type": "uint256"}   # aTokenAddress
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            }
-        ]
-
-    def get_oracle_abi(self):
-        """Minimal ABI for Aave Oracle"""
-        return [
-            {
-                "inputs": [{"type": "address"}],
-                "name": "getAssetPrice",
-                "outputs": [{"type": "uint256"}],
-                "stateMutability": "view",
-                "type": "function"
-            }
-        ] 
+            self.logger.error(f"Error getting optimal position: {e}")
+            return {
+                'supply_apy': 0,
+                'borrow_apy': 0,
+                'estimated_net_apy': 0,
+                'utilization_rate': 0,
+                'health_factor': 0,
+                'borrow_ratio': 0
+            } 

@@ -7,6 +7,7 @@ from ai.agent import AIAgent
 import pandas as pd
 from data_providers.market_data import MarketDataAggregator
 from scripts.arbitrage_manager import ArbitrageManager
+from vault.super_vault_manager import SuperVaultManager
 
 class SmartRewardsMonitor:
     def __init__(self):

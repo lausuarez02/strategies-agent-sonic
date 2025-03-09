@@ -1,16 +1,42 @@
-DEBRIDGE_ABI = [
+DEBRIDGE_PROXY_ABI = [
     {
-        "inputs": [
-            {"type": "address"},
-            {"type": "uint256"},
-            {"type": "uint256"}
-        ],
-        "name": "send",
-        "outputs": [{"type": "uint256"}],
+        "inputs": [],
+        "name": "implementation",
+        "outputs": [{"internalType": "address", "name": "implementation_", "type": "address"}],
         "stateMutability": "nonpayable",
         "type": "function"
     }
+]
+
+DEBRIDGE_IMPLEMENTATION_ABI = [
+    {
+        "inputs": [
+            {"internalType": "address", "name": "token", "type": "address"},
+            {"internalType": "uint256", "name": "amount", "type": "uint256"},
+            {"internalType": "uint256", "name": "chainIdTo", "type": "uint256"},
+            {"internalType": "bytes32", "name": "receiver", "type": "bytes32"},
+            {"internalType": "bytes", "name": "permit", "type": "bytes"},
+            {"internalType": "bool", "name": "useAssetFee", "type": "bool"},
+            {"internalType": "uint32", "name": "referralCode", "type": "uint32"},
+            {"internalType": "bytes", "name": "autoParams", "type": "bytes"}
+        ],
+        "name": "send",
+        "outputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {"internalType": "uint256", "name": "chainIdTo", "type": "uint256"},
+            {"internalType": "bytes32", "name": "receiver", "type": "bytes32"},
+            {"internalType": "bytes", "name": "permit", "type": "bytes"},
+            {"internalType": "bool", "name": "useAssetFee", "type": "bool"},
+            {"internalType": "uint32", "name": "referralCode", "type": "uint32"},
+            {"internalType": "bytes", "name": "autoParams", "type": "bytes"}
+        ],
+        "name": "sendNative",
+        "outputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
+        "stateMutability": "payable",
+        "type": "function"
+    }
 ] 
-
-
-[{"inputs":[{"internalType":"address","name":"_logic","type":"address"},{"internalType":"address","name":"admin_","type":"address"},{"internalType":"bytes","name":"_data","type":"bytes"}],"stateMutability":"payable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"previousAdmin","type":"address"},{"indexed":false,"internalType":"address","name":"newAdmin","type":"address"}],"name":"AdminChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"beacon","type":"address"}],"name":"BeaconUpgraded","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"implementation","type":"address"}],"name":"Upgraded","type":"event"},{"stateMutability":"payable","type":"fallback"},{"inputs":[],"name":"admin","outputs":[{"internalType":"address","name":"admin_","type":"address"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newAdmin","type":"address"}],"name":"changeAdmin","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"implementation","outputs":[{"internalType":"address","name":"implementation_","type":"address"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newImplementation","type":"address"}],"name":"upgradeTo","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newImplementation","type":"address"},{"internalType":"bytes","name":"data","type":"bytes"}],"name":"upgradeToAndCall","outputs":[],"stateMutability":"payable","type":"function"},{"stateMutability":"payable","type":"receive"}]

@@ -1,9 +1,9 @@
 networks:
-  sonic:  # For Sonic L1
+  sonic:  # For Sonic L16e80267c45670aebab0033a4eb5f354f96475310
     rpc_url: "https://rpc.soniclabs.com"
     chain_id: 146
   arbitrum:  # For Arbitrum operations
-    rpc_url: "https://arbitrum-mainnet.infura.io/v3/${ARB_RPC_KEY}"
+    rpc_url: "https://rpc.ankr.com/arbitrum"  # Ankr's public RPC
     chain_id: 42161
 
 contracts:
@@ -11,6 +11,7 @@ contracts:
     sonic_vault: "0xa3c0eCA00D2B76b4d1F170b0AB3FdeA16C180186"
     sonic_oracle: "0xE68e0C66950a7e02335fc9f44daa05D115c4E88B"
     sonic_zapper: "0xe25A2B256ffb3AD73678d5e80DE8d2F6022fAb21"
+    wrapped_sonic: "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38"
   arbitrum:
     debridge_gate: "0x43dE2d77BF8027e25dBD179B491e8d64f38398aA"
     aave:
@@ -21,11 +22,41 @@ contracts:
       tokens:
         eth: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
         usdc: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+  supervault: "0x4BdE0740740b8dBb5f6Eb8c9ccB4Fc01171e953C"
+  aave:
+    lending_token: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"  # USDC on Arbitrum
+    pool: "0x794a61358D6845594F94dc1DB02A252b5b4814aD"  # Aave v3 Pool
+  wrapped_sonic: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"  # Wrapped Sonic
 
 strategy:
-  reinvest_threshold: 0.05  # Example: Only reinvest if rewards > 5%
-  rebalance_interval: 86400  # Rebalance every 24h (in seconds)
+  min_apy: 0.05  # Minimum 5% APY for any strategy
+  max_allocation_percentage: 0.8  # Maximum 80% allocation to single strategy
+  rebalance_threshold: 0.05  # 5% deviation triggers rebalance
+  emergency_health_factor: 1.05  # Emergency withdrawal below this
+  min_validator_performance: 0.95  # Minimum 95% validator performance
+  emergency_withdrawal_percentage: 0.5  # Withdraw 50% in emergencies
+  max_gas_price: 100000000000  # Maximum gas price for execution
+  reinvest_threshold: 0.05  # Only reinvest if rewards > 5%
+  rebalance_interval: 3600  # Rebalance every 1 hour (in seconds)
+  check_interval: 60  # seconds
+  
   arbitrage:
     min_profit_percentage: 0.02  # Minimum 2% profit after fees
     vault_percentage: 0.05       # Use 5% of vault for arbitrage
-    max_slippage: 0.01
+    max_slippage: 0.01          # Maximum 1% slippage
+    min_amount: 1               # Minimum amount for arbitrage
+    max_amount: 1000            # Maximum amount for arbitrage
+    gas_threshold: 100          # Maximum acceptable gas price for arbitrage
+  
+  aave_sonic_beefy:
+    max_borrow_ratio: 0.75  # Maximum 75% borrow ratio
+    min_health_factor: 1.5  # Minimum health factor
+    bridge_threshold: 1000  # Minimum amount to bridge
+    
+  sonic_beefy_farm:
+    min_stake_amount: 100  # Minimum stake amount
+    max_unstake_delay: 7200  # Maximum acceptable unstake delay in seconds
+    min_validator_stake: 1000000  # Minimum validator total stake
+
+agent:
+  address: "0x1655D65B58aB4a2646AA61693663B1685A20b319"

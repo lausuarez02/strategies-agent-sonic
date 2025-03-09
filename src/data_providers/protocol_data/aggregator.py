@@ -1,53 +1,55 @@
-from typing import Dict, List
-from .base_protocol import BaseProtocolProvider, ProtocolData
-from .sonic_protocols import (
-    SiloFinanceProvider,
-    BeetsProvider,
-    ShadowExchangeProvider,
-    OriginSonicProvider
-)
+import logging
+from typing import List, Dict
+from web3 import Web3
 
 class ProtocolDataAggregator:
-    def __init__(self, web3_instance):
-        # Initialize all protocol providers
-        self.providers: Dict[str, BaseProtocolProvider] = {
-            "silo": SiloFinanceProvider(web3_instance),
-            "beets": BeetsProvider(web3_instance),
-            "shadow": ShadowExchangeProvider(web3_instance),
-            "origin_sonic": OriginSonicProvider(web3_instance)
+    def __init__(self, web3: Web3):
+        self.web3 = web3
+        self.logger = logging.getLogger('ProtocolDataAggregator')
+        
+        # Initialize protocol providers
+        self.protocols = {
+            "aave": {
+                "name": "Aave V3",
+                "address": "0x794a61358D6845594F94dc1DB02A252b5b4814aD"
+            }
         }
-    
-    def get_all_protocols_data(self) -> List[ProtocolData]:
-        """Get data from all protocols"""
-        return [
-            provider.get_protocol_info()
-            for provider in self.providers.values()
-        ]
-    
-    def get_total_tvl(self) -> float:
-        """Get total TVL across all protocols"""
-        return sum(
-            protocol.metrics.tvl
-            for protocol in self.get_all_protocols_data()
-        )
-    
-    def get_protocols_by_category(self, category) -> List[ProtocolData]:
-        """Get all protocols in a specific category"""
-        return [
-            protocol for protocol in self.get_all_protocols_data()
-            if protocol.category == category
-        ]
-    
-    def get_top_protocols_by_tvl(self, limit: int = 5) -> List[ProtocolData]:
-        """Get top protocols by TVL"""
-        protocols = self.get_all_protocols_data()
-        return sorted(
-            protocols,
-            key=lambda x: x.metrics.tvl,
-            reverse=True
-        )[:limit]
-    
-    def get_highest_volume_24h(self) -> ProtocolData:
+        
+    def get_all_protocols_data(self) -> List[Dict]:
+        """Get data from all integrated protocols"""
+        try:
+            protocols_data = []
+            for protocol_id, protocol_info in self.protocols.items():
+                protocols_data.append({
+                    "id": protocol_id,
+                    "name": protocol_info["name"],
+                    "address": protocol_info["address"]
+                })
+            return protocols_data
+            
+        except Exception as e:
+            self.logger.error(f"Error getting protocols data: {e}")
+            return []
+            
+    def get_top_protocols_by_tvl(self, n: int = 5) -> List[Dict]:
+        """Get top n protocols by TVL"""
+        try:
+            # Placeholder implementation
+            return []
+            
+        except Exception as e:
+            self.logger.error(f"Error getting top protocols: {e}")
+            return []
+            
+    def get_highest_volume_24h(self) -> Dict:
         """Get protocol with highest 24h volume"""
-        protocols = [p for p in self.get_all_protocols_data() if p.metrics.volume_24h is not None]
-        return max(protocols, key=lambda x: x.metrics.volume_24h) 
+        try:
+            # Placeholder implementation
+            return {
+                'protocol': '',
+                'volume': 0
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting highest volume: {e}")
+            return {'protocol': '', 'volume': 0} 
