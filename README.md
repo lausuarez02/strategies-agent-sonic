@@ -1,4 +1,4 @@
-# Cult of Ronin: Off-Chain Execution & Automation Repo (strategies-agent)
+# Shogun: Off-Chain Execution & Automation Repo (strategies-agent)
 
 This repository handles all off-chain logic and automation for decentralized finance (DeFi) strategies. Written in Python, it integrates with Web3 to execute various tasks such as monitoring rewards, automated execution, data fetching, and smart contract interaction.
 
